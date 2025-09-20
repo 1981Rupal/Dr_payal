@@ -1,0 +1,503 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Dr. Payal's Clinic CRM{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">
+            <i class="bi bi-speedometer2 me-2"></i>
+            Dashboard
+        </h1>
+        <p class="text-muted mb-0">Welcome back, {{ current_user.full_name }}!</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="refreshDashboard()">
+            <i class="bi bi-arrow-clockwise me-1"></i>
+            Refresh
+        </button>
+        <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-calendar me-1"></i>
+                Today
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="filterByPeriod('today')">Today</a></li>
+                <li><a class="dropdown-item" href="#" onclick="filterByPeriod('week')">This Week</a></li>
+                <li><a class="dropdown-item" href="#" onclick="filterByPeriod('month')">This Month</a></li>
+                <li><a class="dropdown-item" href="#" onclick="filterByPeriod('year')">This Year</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    {% if current_user.role.value in ['super_admin', 'admin'] %}
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number">{{ stats.total_patients or 0 }}</div>
+                    <div class="stat-label">Total Patients</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-people" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="stat-card success">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number">{{ stats.total_appointments_today or 0 }}</div>
+                    <div class="stat-label">Today's Appointments</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-calendar-check" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="stat-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number">{{ stats.pending_appointments or 0 }}</div>
+                    <div class="stat-label">Pending Appointments</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-clock-history" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="stat-card info">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number">₹{{ "%.0f"|format(stats.total_revenue_month or 0) }}</div>
+                    <div class="stat-label">Monthly Revenue</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-currency-rupee" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% elif current_user.role.value == 'doctor' %}
+    <div class="col-xl-4 col-md-6 mb-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number">{{ stats.my_appointments_today or 0 }}</div>
+                    <div class="stat-label">My Appointments Today</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-calendar-check" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-3">
+        <div class="stat-card success">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number">{{ stats.my_patients or 0 }}</div>
+                    <div class="stat-label">My Patients</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-people" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-3">
+        <div class="stat-card info">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number">{{ stats.pending_consultations or 0 }}</div>
+                    <div class="stat-label">Pending Consultations</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-camera-video" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% elif current_user.role.value == 'staff' %}
+    <div class="col-xl-4 col-md-6 mb-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number">{{ stats.appointments_today or 0 }}</div>
+                    <div class="stat-label">Today's Appointments</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-calendar-check" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-3">
+        <div class="stat-card warning">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number">{{ stats.pending_appointments or 0 }}</div>
+                    <div class="stat-label">Pending Appointments</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-clock-history" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4 col-md-6 mb-3">
+        <div class="stat-card info">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number">{{ stats.pending_payments or 0 }}</div>
+                    <div class="stat-label">Pending Payments</div>
+                </div>
+                <div class="stat-icon">
+                    <i class="bi bi-credit-card" style="font-size: 2.5rem; opacity: 0.7;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Main Content Row -->
+<div class="row">
+    <!-- Today's Appointments -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar-day me-2"></i>
+                    Today's Appointments
+                </h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-light" onclick="refreshAppointments()">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    {% if current_user.can_access('appointments') %}
+                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#newAppointmentModal">
+                        <i class="bi bi-plus"></i>
+                        New
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                {% if recent_appointments %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Patient</th>
+                                <th>Doctor</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in recent_appointments %}
+                            <tr>
+                                <td>
+                                    <strong>{{ appointment.appointment_time.strftime('%I:%M %p') }}</strong>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                            {{ appointment.patient.first_name[0] }}{{ appointment.patient.last_name[0] }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">{{ appointment.patient.full_name }}</div>
+                                            <small class="text-muted">{{ appointment.patient.phone }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ appointment.doctor.full_name }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'primary' if appointment.visit_type.value == 'clinic' else 'success' if appointment.visit_type.value == 'home' else 'info' }}">
+                                        {{ appointment.visit_type.value.title() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if appointment.status.value == 'confirmed' else 'warning' if appointment.status.value == 'pending' else 'danger' }}">
+                                        {{ appointment.status.value.title() }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        {% if appointment.status.value == 'pending' and current_user.can_access('appointments') %}
+                                        <button class="btn btn-outline-success" onclick="confirmAppointment({{ appointment.id }})">
+                                            <i class="bi bi-check"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-outline-primary" onclick="viewAppointment({{ appointment.id }})">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                        {% if appointment.visit_type.value == 'online' %}
+                                        <button class="btn btn-outline-info" onclick="startConsultation({{ appointment.id }})">
+                                            <i class="bi bi-camera-video"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="text-muted mt-3">No appointments scheduled for today</h5>
+                    <p class="text-muted">All appointments will appear here</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions & Notifications -->
+    <div class="col-lg-4 mb-4">
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-lightning me-2"></i>
+                    Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if current_user.can_access('patients') %}
+                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newPatientModal">
+                        <i class="bi bi-person-plus me-2"></i>
+                        Add New Patient
+                    </button>
+                    {% endif %}
+                    
+                    {% if current_user.can_access('appointments') %}
+                    <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#newAppointmentModal">
+                        <i class="bi bi-calendar-plus me-2"></i>
+                        Schedule Appointment
+                    </button>
+                    {% endif %}
+                    
+                    {% if current_user.can_access('prescriptions') %}
+                    <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#newPrescriptionModal">
+                        <i class="bi bi-prescription2 me-2"></i>
+                        Create Prescription
+                    </button>
+                    {% endif %}
+                    
+                    {% if current_user.can_access('billing') %}
+                    <button class="btn btn-outline-warning" onclick="openBillingModule()">
+                        <i class="bi bi-receipt me-2"></i>
+                        Process Payment
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-activity me-2"></i>
+                    Recent Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="activity-feed">
+                    <div class="activity-item">
+                        <div class="activity-icon bg-success">
+                            <i class="bi bi-person-plus"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-text">New patient registered</div>
+                            <div class="activity-time">2 minutes ago</div>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="activity-icon bg-primary">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-text">Appointment confirmed</div>
+                            <div class="activity-time">15 minutes ago</div>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="activity-icon bg-info">
+                            <i class="bi bi-prescription2"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-text">Prescription created</div>
+                            <div class="activity-time">1 hour ago</div>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="activity-icon bg-warning">
+                            <i class="bi bi-credit-card"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-text">Payment received</div>
+                            <div class="activity-time">2 hours ago</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Action Button -->
+<button class="floating-action-btn" data-bs-toggle="modal" data-bs-target="#quickActionModal">
+    <i class="bi bi-plus" style="font-size: 1.5rem;"></i>
+</button>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .avatar-sm {
+        width: 40px;
+        height: 40px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .activity-feed {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .activity-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .activity-item:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    .activity-icon {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 12px;
+        flex-shrink: 0;
+    }
+
+    .activity-content {
+        flex: 1;
+    }
+
+    .activity-text {
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 2px;
+    }
+
+    .activity-time {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function refreshDashboard() {
+        showLoading();
+        location.reload();
+    }
+
+    function refreshAppointments() {
+        // In a real implementation, this would use AJAX to refresh just the appointments table
+        showLoading();
+        setTimeout(() => {
+            hideLoading();
+        }, 1000);
+    }
+
+    function confirmAppointment(appointmentId) {
+        if (confirm('Are you sure you want to confirm this appointment?')) {
+            // AJAX call to confirm appointment
+            fetch(`/api/appointments/${appointmentId}/confirm`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error confirming appointment: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error confirming appointment');
+            });
+        }
+    }
+
+    function viewAppointment(appointmentId) {
+        // Open appointment details modal
+        window.location.href = `/appointments/${appointmentId}`;
+    }
+
+    function startConsultation(appointmentId) {
+        // Start online consultation
+        window.open(`/consultations/${appointmentId}/start`, '_blank');
+    }
+
+    function filterByPeriod(period) {
+        // Filter dashboard by time period
+        const url = new URL(window.location);
+        url.searchParams.set('period', period);
+        window.location.href = url.toString();
+    }
+
+    function openBillingModule() {
+        window.location.href = '/billing';
+    }
+
+    // Auto-refresh dashboard every 5 minutes
+    setInterval(() => {
+        refreshAppointments();
+    }, 300000);
+</script>
+{% endblock %}

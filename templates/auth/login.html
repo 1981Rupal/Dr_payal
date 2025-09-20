@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Dr. Payal's Clinic CRM{% endblock %}
+
+{% block extra_css %}
+<style>
+    .login-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .login-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><polygon fill="%23ffffff08" points="0,1000 1000,0 1000,1000"/></svg>');
+        background-size: cover;
+    }
+
+    .login-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 450px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .login-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .login-header .logo {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, var(--primary-color), #1e3a5f);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        color: white;
+        font-size: 2rem;
+    }
+
+    .login-header h2 {
+        color: var(--primary-color);
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .login-header p {
+        color: #6c757d;
+        margin-bottom: 0;
+    }
+
+    .form-floating {
+        margin-bottom: 20px;
+    }
+
+    .form-floating .form-control {
+        border-radius: 15px;
+        border: 2px solid #e9ecef;
+        padding: 20px 15px 10px;
+        height: auto;
+    }
+
+    .form-floating .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0.2rem rgba(44, 90, 160, 0.25);
+    }
+
+    .form-floating label {
+        padding: 15px;
+        color: #6c757d;
+    }
+
+    .btn-login {
+        background: linear-gradient(135deg, var(--primary-color), #1e3a5f);
+        border: none;
+        border-radius: 15px;
+        padding: 15px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        width: 100%;
+        color: white;
+        transition: all 0.3s ease;
+    }
+
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(44, 90, 160, 0.4);
+        color: white;
+    }
+
+    .divider {
+        text-align: center;
+        margin: 30px 0;
+        position: relative;
+    }
+
+    .divider::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: #e9ecef;
+    }
+
+    .divider span {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 0 20px;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    .demo-credentials {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 20px;
+        font-size: 0.9rem;
+    }
+
+    .demo-credentials h6 {
+        color: var(--primary-color);
+        margin-bottom: 10px;
+    }
+
+    .demo-credentials .credential-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+    }
+
+    .demo-credentials .credential-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .floating-shapes {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        overflow: hidden;
+        z-index: 0;
+    }
+
+    .floating-shapes .shape {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: float 6s ease-in-out infinite;
+    }
+
+    .floating-shapes .shape:nth-child(1) {
+        width: 100px;
+        height: 100px;
+        top: 20%;
+        left: 10%;
+        animation-delay: 0s;
+    }
+
+    .floating-shapes .shape:nth-child(2) {
+        width: 150px;
+        height: 150px;
+        top: 60%;
+        right: 10%;
+        animation-delay: 2s;
+    }
+
+    .floating-shapes .shape:nth-child(3) {
+        width: 80px;
+        height: 80px;
+        bottom: 20%;
+        left: 20%;
+        animation-delay: 4s;
+    }
+
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0px);
+        }
+        50% {
+            transform: translateY(-20px);
+        }
+    }
+
+    @media (max-width: 576px) {
+        .login-card {
+            margin: 20px;
+            padding: 30px 20px;
+        }
+        
+        .login-header .logo {
+            width: 60px;
+            height: 60px;
+            font-size: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="floating-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+    </div>
+    
+    <div class="login-card">
+        <div class="login-header">
+            <div class="logo">
+                <i class="bi bi-hospital"></i>
+            </div>
+            <h2>Welcome Back</h2>
+            <p>Sign in to your account to continue</p>
+        </div>
+
+        <form method="POST" id="loginForm">
+            <div class="form-floating">
+                <input type="text" class="form-control" id="username" name="username" placeholder="Username" required>
+                <label for="username"><i class="bi bi-person me-2"></i>Username</label>
+            </div>
+
+            <div class="form-floating">
+                <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+                <label for="password"><i class="bi bi-lock me-2"></i>Password</label>
+            </div>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="rememberMe">
+                <label class="form-check-label" for="rememberMe">
+                    Remember me
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-login">
+                <i class="bi bi-box-arrow-in-right me-2"></i>
+                Sign In
+            </button>
+        </form>
+
+        <div class="divider">
+            <span>Demo Credentials</span>
+        </div>
+
+        <div class="demo-credentials">
+            <h6><i class="bi bi-info-circle me-2"></i>Test Accounts</h6>
+            <div class="credential-item">
+                <span><strong>Super Admin:</strong></span>
+                <span>superadmin / admin123</span>
+            </div>
+            <div class="credential-item">
+                <span><strong>Doctor:</strong></span>
+                <span>doctor / doctor123</span>
+            </div>
+            <div class="credential-item">
+                <span><strong>Staff:</strong></span>
+                <span>staff / staff123</span>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <small class="text-muted">
+                <i class="bi bi-shield-check me-1"></i>
+                Your data is secure and encrypted
+            </small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-fill demo credentials
+    document.addEventListener('DOMContentLoaded', function() {
+        const credentialItems = document.querySelectorAll('.credential-item');
+        credentialItems.forEach(item => {
+            item.style.cursor = 'pointer';
+            item.addEventListener('click', function() {
+                const text = this.textContent;
+                const credentials = text.split(' / ');
+                if (credentials.length === 2) {
+                    const username = credentials[0].split(': ')[1];
+                    const password = credentials[1];
+                    
+                    document.getElementById('username').value = username;
+                    document.getElementById('password').value = password;
+                    
+                    // Add visual feedback
+                    this.style.background = 'rgba(40, 167, 69, 0.1)';
+                    setTimeout(() => {
+                        this.style.background = '';
+                    }, 1000);
+                }
+            });
+        });
+    });
+
+    // Form submission with loading
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Signing In...';
+        submitBtn.disabled = true;
+    });
+
+    // Add floating animation to shapes
+    document.addEventListener('DOMContentLoaded', function() {
+        const shapes = document.querySelectorAll('.floating-shapes .shape');
+        shapes.forEach((shape, index) => {
+            shape.style.animationDelay = `${index * 2}s`;
+        });
+    });
+</script>
+{% endblock %}

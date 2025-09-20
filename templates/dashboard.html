@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. Payal's Clinic Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f8f9fa; }
+        .chart-container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    </style>
+</head>
+<body>
+    <div class="container my-5">
+        <div class="dashboard-header">
+            <h1 class="text-primary">Clinic Dashboard</h1>
+            {% if current_user.is_authenticated %}
+            <div>
+                <a href="{{ url_for('home') }}" class="btn btn-secondary me-2">Back to Patient List</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+            </div>
+            {% endif %}
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="alert-container mb-3">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <h2 class="h4 mb-3">Patient Visits</h2>
+                    <ul class="nav nav-tabs" id="visitsTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="daily-visits-tab" data-bs-toggle="tab" data-bs-target="#daily-visits" type="button" role="tab" aria-controls="daily-visits" aria-selected="true">Daily</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="weekly-visits-tab" data-bs-toggle="tab" data-bs-target="#weekly-visits" type="button" role="tab" aria-controls="weekly-visits" aria-selected="false">Weekly</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="monthly-visits-tab" data-bs-toggle="tab" data-bs-target="#monthly-visits" type="button" role="tab" aria-controls="monthly-visits" aria-selected="false">Monthly</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content mt-3">
+                        <div class="tab-pane fade show active" id="daily-visits" role="tabpanel" aria-labelledby="daily-visits-tab">
+                            <canvas id="dailyVisitsChart"></canvas>
+                        </div>
+                        <div class="tab-pane fade" id="weekly-visits" role="tabpanel" aria-labelledby="weekly-visits-tab">
+                            <canvas id="weeklyVisitsChart"></canvas>
+                        </div>
+                        <div class="tab-pane fade" id="monthly-visits" role="tabpanel" aria-labelledby="monthly-visits-tab">
+                            <canvas id="monthlyVisitsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="chart-container">
+                    <h2 class="h4 mb-3">Total Earnings</h2>
+                    <ul class="nav nav-tabs" id="earningsTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="daily-earnings-tab" data-bs-toggle="tab" data-bs-target="#daily-earnings" type="button" role="tab" aria-controls="daily-earnings" aria-selected="true">Daily</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="weekly-earnings-tab" data-bs-toggle="tab" data-bs-target="#weekly-earnings" type="button" role="tab" aria-controls="weekly-earnings" aria-selected="false">Weekly</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="monthly-earnings-tab" data-bs-toggle="tab" data-bs-target="#monthly-earnings" type="button" role="tab" aria-controls="monthly-earnings" aria-selected="false">Monthly</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content mt-3">
+                        <div class="tab-pane fade show active" id="daily-earnings" role="tabpanel" aria-labelledby="daily-earnings-tab">
+                            <canvas id="dailyEarningsChart"></canvas>
+                        </div>
+                        <div class="tab-pane fade" id="weekly-earnings" role="tabpanel" aria-labelledby="weekly-earnings-tab">
+                            <canvas id="weeklyEarningsChart"></canvas>
+                        </div>
+                        <div class="tab-pane fade" id="monthly-earnings" role="tabpanel" aria-labelledby="monthly-earnings-tab">
+                            <canvas id="monthlyEarningsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Data passed from Flask
+        const dailyVisits = JSON.parse('{{ daily_visits | tojson }}');
+        const weeklyVisits = JSON.parse('{{ weekly_visits | tojson }}');
+        const monthlyVisits = JSON.parse('{{ monthly_visits | tojson }}');
+        const dailyEarnings = JSON.parse('{{ daily_earnings | tojson }}');
+        const weeklyEarnings = JSON.parse('{{ weekly_earnings | tojson }}');
+        const monthlyEarnings = JSON.parse('{{ monthly_earnings | tojson }}');
+
+        // Function to create a chart
+        function createChart(canvasId, labels, data, chartTitle, chartColor) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: chartTitle,
+                        data: data,
+                        backgroundColor: chartColor,
+                        borderColor: chartColor,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        // Prepare data for Daily Visits
+        const dailyVisitsLabels = dailyVisits.map(item => item[0]);
+        const dailyVisitsData = dailyVisits.map(item => item[1]);
+        createChart('dailyVisitsChart', dailyVisitsLabels, dailyVisitsData, 'Daily Patients', 'rgba(75, 192, 192, 0.6)');
+
+        // Prepare data for Weekly Visits
+        const weeklyVisitsLabels = weeklyVisits.map(item => `Week ${item[1]}`);
+        const weeklyVisitsData = weeklyVisits.map(item => item[2]);
+        createChart('weeklyVisitsChart', weeklyVisitsLabels, weeklyVisitsData, 'Weekly Patients', 'rgba(153, 102, 255, 0.6)');
+
+        // Prepare data for Monthly Visits
+        const monthlyVisitsLabels = monthlyVisits.map(item => `${item[0]}-${item[1]}`);
+        const monthlyVisitsData = monthlyVisits.map(item => item[2]);
+        createChart('monthlyVisitsChart', monthlyVisitsLabels, monthlyVisitsData, 'Monthly Patients', 'rgba(255, 159, 64, 0.6)');
+
+        // Prepare data for Daily Earnings
+        const dailyEarningsLabels = dailyEarnings.map(item => item[0]);
+        const dailyEarningsData = dailyEarnings.map(item => item[1]);
+        createChart('dailyEarningsChart', dailyEarningsLabels, dailyEarningsData, 'Daily Earnings (₹)', 'rgba(54, 162, 235, 0.6)');
+
+        // Prepare data for Weekly Earnings
+        const weeklyEarningsLabels = weeklyEarnings.map(item => `Week ${item[1]}`);
+        const weeklyEarningsData = weeklyEarnings.map(item => item[2]);
+        createChart('weeklyEarningsChart', weeklyEarningsLabels, weeklyEarningsData, 'Weekly Earnings (₹)', 'rgba(255, 99, 132, 0.6)');
+
+        // Prepare data for Monthly Earnings
+        const monthlyEarningsLabels = monthlyEarnings.map(item => `${item[0]}-${item[1]}`);
+        const monthlyEarningsData = monthlyEarnings.map(item => item[2]);
+        createChart('monthlyEarningsChart', monthlyEarningsLabels, monthlyEarningsData, 'Monthly Earnings (₹)', 'rgba(255, 206, 86, 0.6)');
+    </script>
+</body>
+</html>
