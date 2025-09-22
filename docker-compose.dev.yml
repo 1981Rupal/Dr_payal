@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: hospital_crm_db_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hospital_crm_dev
+      POSTGRES_USER: hospital_user
+      POSTGRES_PASSWORD: hospital_password_dev
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5433:5432"  # Different port for dev
+    networks:
+      - hospital_dev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hospital_user -d hospital_crm_dev"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis for caching and session storage
+  redis:
+    image: redis:7-alpine
+    container_name: hospital_crm_redis_dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6380:6379"  # Different port for dev
+    networks:
+      - hospital_dev_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Main Application (Development mode)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: hospital_crm_app_dev
+    restart: unless-stopped
+    environment:
+      # Database
+      DATABASE_URL: postgresql://hospital_user:hospital_password_dev@db:5432/hospital_crm_dev
+      
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      
+      # Flask
+      FLASK_ENV: development
+      FLASK_DEBUG: "1"
+      SECRET_KEY: dev-secret-key-not-for-production
+      
+      # Development settings
+      DEBUG: "1"
+      TESTING: "0"
+      
+      # File uploads
+      UPLOAD_FOLDER: /app/uploads
+      MAX_CONTENT_LENGTH: 16777216  # 16MB
+      
+      # Disable security features for development
+      SESSION_COOKIE_SECURE: "false"
+      SESSION_COOKIE_HTTPONLY: "true"
+      SESSION_COOKIE_SAMESITE: "Lax"
+      
+    volumes:
+      - .:/app  # Mount source code for live reloading
+      - app_dev_uploads:/app/uploads
+      - app_dev_logs:/app/logs
+    ports:
+      - "5001:5000"  # Different port for dev
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hospital_dev_network
+    command: ["python", "app_enhanced.py"]  # Direct Python execution for development
+
+  # Mailhog for email testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: hospital_crm_mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - hospital_dev_network
+
+  # Adminer for database management
+  adminer:
+    image: adminer:latest
+    container_name: hospital_crm_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    networks:
+      - hospital_dev_network
+    depends_on:
+      - db
+
+  # Redis Commander for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: hospital_crm_redis_commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - hospital_dev_network
+    depends_on:
+      - redis
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+  app_dev_uploads:
+    driver: local
+  app_dev_logs:
+    driver: local
+
+networks:
+  hospital_dev_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

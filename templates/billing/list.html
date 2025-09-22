@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}Billing - Dr. Payal's Clinic CRM{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">
+            <i class="bi bi-receipt me-2"></i>
+            Billing & Payments
+        </h1>
+        <p class="text-muted mb-0">Manage bills, payments, and financial records</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="generateReport()">
+            <i class="bi bi-file-earmark-text me-1"></i>
+            Generate Report
+        </button>
+        <a href="{{ url_for('billing.create_bill') }}" class="btn btn-success">
+            <i class="bi bi-plus-circle me-1"></i>
+            Create Bill
+        </a>
+    </div>
+</div>
+
+<!-- Financial Summary -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-success">₹{{ "%.2f"|format(stats.total_revenue or 0) }}</h5>
+                <p class="card-text text-muted">Total Revenue</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning">₹{{ "%.2f"|format(stats.pending_amount or 0) }}</h5>
+                <p class="card-text text-muted">Pending Payments</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-info">₹{{ "%.2f"|format(stats.monthly_revenue or 0) }}</h5>
+                <p class="card-text text-muted">This Month</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ stats.total_bills or 0 }}</h5>
+                <p class="card-text text-muted">Total Bills</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ search }}" placeholder="Patient name or bill ID">
+            </div>
+            <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">All Status</option>
+                    <option value="pending" {{ 'selected' if status_filter == 'pending' }}>Pending</option>
+                    <option value="partial" {{ 'selected' if status_filter == 'partial' }}>Partial</option>
+                    <option value="paid" {{ 'selected' if status_filter == 'paid' }}>Paid</option>
+                    <option value="overdue" {{ 'selected' if status_filter == 'overdue' }}>Overdue</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">From Date</label>
+                <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">To Date</label>
+                <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-funnel me-1"></i>
+                    Filter
+                </button>
+                <a href="{{ url_for('billing.list_bills') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle me-1"></i>
+                    Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bills Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-list me-2"></i>
+            Bills & Invoices
+            <span class="badge bg-primary ms-2">{{ bills.total }} total</span>
+        </h5>
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-three-dots"></i>
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="exportBills()">
+                    <i class="bi bi-download me-2"></i>Export Bills
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="bulkPayment()">
+                    <i class="bi bi-credit-card me-2"></i>Bulk Payment
+                </a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if bills.items %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Bill ID</th>
+                        <th>Patient</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Paid</th>
+                        <th>Balance</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bill in bills.items %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-light text-dark">{{ bill.bill_number }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                    {{ bill.patient.first_name[0] }}{{ bill.patient.last_name[0] }}
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">
+                                        <a href="{{ url_for('patients.view_patient', id=bill.patient.id) }}" 
+                                           class="text-decoration-none">
+                                            {{ bill.patient.full_name }}
+                                        </a>
+                                    </div>
+                                    <small class="text-muted">{{ bill.patient.phone }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <div>{{ bill.bill_date.strftime('%b %d, %Y') }}</div>
+                                {% if bill.due_date %}
+                                <small class="text-muted">Due: {{ bill.due_date.strftime('%b %d') }}</small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <strong>₹{{ "%.2f"|format(bill.total_amount) }}</strong>
+                        </td>
+                        <td>
+                            <span class="text-success">₹{{ "%.2f"|format(bill.paid_amount) }}</span>
+                        </td>
+                        <td>
+                            {% set balance = bill.total_amount - bill.paid_amount %}
+                            <span class="text-{{ 'success' if balance == 0 else 'warning' if balance > 0 else 'danger' }}">
+                                ₹{{ "%.2f"|format(balance) }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if bill.payment_status.value == 'paid' else 'warning' if bill.payment_status.value == 'partial' else 'danger' if bill.payment_status.value == 'overdue' else 'secondary' }}">
+                                {{ bill.payment_status.value.title() }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="viewBill({{ bill.id }})" title="View Bill">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-outline-info" onclick="printBill({{ bill.id }})" title="Print">
+                                    <i class="bi bi-printer"></i>
+                                </button>
+                                {% if bill.payment_status.value != 'paid' %}
+                                <button class="btn btn-outline-success" onclick="recordPayment({{ bill.id }})" title="Record Payment">
+                                    <i class="bi bi-credit-card"></i>
+                                </button>
+                                {% endif %}
+                                <button class="btn btn-outline-warning" onclick="sendReminder({{ bill.id }})" title="Send Reminder">
+                                    <i class="bi bi-bell"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if bills.pages > 1 %}
+        <div class="card-footer">
+            <nav aria-label="Bills pagination">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if bills.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('billing.list_bills', page=bills.prev_num, search=search, status=status_filter, date_from=date_from, date_to=date_to) }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in bills.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != bills.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('billing.list_bills', page=page_num, search=search, status=status_filter, date_from=date_from, date_to=date_to) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if bills.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('billing.list_bills', page=bills.next_num, search=search, status=status_filter, date_from=date_from, date_to=date_to) }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-receipt text-muted" style="font-size: 4rem;"></i>
+            <h4 class="text-muted mt-3">No bills found</h4>
+            {% if search or status_filter or date_from or date_to %}
+            <p class="text-muted">No bills match your filter criteria.</p>
+            <a href="{{ url_for('billing.list_bills') }}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left me-1"></i>
+                View All Bills
+            </a>
+            {% else %}
+            <p class="text-muted">Start by creating your first bill.</p>
+            <a href="{{ url_for('billing.create_bill') }}" class="btn btn-success">
+                <i class="bi bi-plus-circle me-1"></i>
+                Create First Bill
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Record Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="paymentForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="paymentAmount" class="form-label">Payment Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" class="form-control" id="paymentAmount" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="paymentMethod" class="form-label">Payment Method</label>
+                        <select class="form-select" id="paymentMethod" required>
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                            <option value="upi">UPI</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="cheque">Cheque</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="paymentNotes" class="form-label">Notes (Optional)</label>
+                        <textarea class="form-control" id="paymentNotes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Record Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .avatar-sm {
+        width: 40px;
+        height: 40px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(44, 90, 160, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentBillId = null;
+    
+    function viewBill(billId) {
+        window.location.href = `/billing/${billId}`;
+    }
+    
+    function printBill(billId) {
+        window.open(`/billing/${billId}/print`, '_blank');
+    }
+    
+    function recordPayment(billId) {
+        currentBillId = billId;
+        const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
+        modal.show();
+    }
+    
+    function sendReminder(billId) {
+        if (confirm('Send payment reminder to patient?')) {
+            fetch(`/api/billing/${billId}/reminder`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Reminder sent successfully!');
+                } else {
+                    alert('Error sending reminder: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Error sending reminder');
+            });
+        }
+    }
+    
+    function exportBills() {
+        const params = new URLSearchParams(window.location.search);
+        window.location.href = '/api/billing/export?' + params.toString();
+    }
+    
+    function bulkPayment() {
+        alert('Bulk payment functionality will be implemented');
+    }
+    
+    function generateReport() {
+        window.location.href = '/billing/reports';
+    }
+    
+    // Payment form handler
+    document.getElementById('paymentForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const paymentData = {
+            amount: parseFloat(document.getElementById('paymentAmount').value),
+            payment_method: document.getElementById('paymentMethod').value,
+            notes: document.getElementById('paymentNotes').value
+        };
+        
+        fetch(`/api/billing/${currentBillId}/payment`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(paymentData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+                location.reload();
+            } else {
+                alert('Error recording payment: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error recording payment');
+        });
+    });
+</script>
+{% endblock %}

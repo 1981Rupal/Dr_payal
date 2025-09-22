@@ -302,7 +302,7 @@
             </button>
             {% endif %}
             
-            <a class="navbar-brand" href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('login') }}">
+            <a class="navbar-brand" href="{{ url_for('main.dashboard') if current_user.is_authenticated else url_for('auth.login') }}">
                 <i class="bi bi-hospital"></i>
                 Dr. Payal's Clinic CRM
             </a>
@@ -316,10 +316,10 @@
                         <span class="badge bg-primary ms-2">{{ current_user.role.value.title() }}</span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>Profile</a></li>
-                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Settings</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}"><i class="bi bi-person me-2"></i>Profile</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.settings') }}"><i class="bi bi-gear me-2"></i>Settings</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                     </ul>
                 </div>
             </div>
@@ -335,57 +335,61 @@
                 <div class="position-sticky pt-3">
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('dashboard') }}">
+                            <a class="nav-link" href="{{ url_for('main.dashboard') }}">
                                 <i class="bi bi-speedometer2"></i>Dashboard
                             </a>
                         </li>
-                        
+
                         {% if current_user.can_access('patients') %}
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
+                            <a class="nav-link" href="{{ url_for('patients.list_patients') }}">
                                 <i class="bi bi-people"></i>Patients
                             </a>
                         </li>
                         {% endif %}
-                        
+
                         {% if current_user.can_access('appointments') %}
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
+                            <a class="nav-link" href="{{ url_for('appointments.list_appointments') }}">
                                 <i class="bi bi-calendar-check"></i>Appointments
-                                <span class="notification-badge">3</span>
                             </a>
                         </li>
                         {% endif %}
-                        
-                        {% if current_user.can_access('prescriptions') %}
+
+                        {% if current_user.can_access('appointments') %}
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
-                                <i class="bi bi-prescription2"></i>Prescriptions
+                            <a class="nav-link" href="{{ url_for('appointments.calendar') }}">
+                                <i class="bi bi-calendar3"></i>Calendar
                             </a>
                         </li>
                         {% endif %}
-                        
+
                         {% if current_user.can_access('billing') %}
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
+                            <a class="nav-link" href="{{ url_for('billing.list_bills') }}">
                                 <i class="bi bi-receipt"></i>Billing
                             </a>
                         </li>
                         {% endif %}
-                        
+
                         {% if current_user.role.value in ['super_admin', 'admin'] %}
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
+                            <a class="nav-link" href="{{ url_for('billing.list_packages') }}">
                                 <i class="bi bi-box"></i>Packages
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
+                            <a class="nav-link" href="{{ url_for('main.reports') }}">
                                 <i class="bi bi-bar-chart"></i>Reports
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">
+                            <a class="nav-link" href="{{ url_for('main.users') }}">
+                                <i class="bi bi-people-fill"></i>Users
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('main.settings') }}">
                                 <i class="bi bi-gear"></i>Settings
                             </a>
                         </li>

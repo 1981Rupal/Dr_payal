@@ -1,146 +1,232 @@
-# app.py
+# app.py - Main Application Entry Point for Hospital CRM
 
-# Imports
-from flask import Flask, render_template, request, redirect, url_for, flash, session
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import or_
-from datetime import date
-from sqlalchemy import func, extract
-from twilio.rest import Client
 import os
+import logging
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from flask_login import UserMixin, login_user, LoginManager, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import or_, func, extract
+from datetime import date, datetime
+from dotenv import load_dotenv
 
-app = Flask(__name__)
-app.secret_key = 'your_super_secret_key_here'
+# Load environment variables
+load_dotenv()
 
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://clinic_user:clinic_password@localhost/drpayal_db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+def create_app(config_name=None):
+    """Application factory pattern"""
+    app = Flask(__name__)
 
-# Flask-Login setup
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_view = 'login'
+    # Configuration
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+        'DATABASE_URL',
+        'postgresql://hospital_user:hospital_password_2024@localhost:5432/hospital_crm'
+    )
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# User model for authentication
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    # Initialize database
+    from models import db
+    db.init_app(app)
 
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+    # Initialize Flask-Migrate
+    migrate = Migrate(app, db)
 
-    def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
-        
-# User loader callback for Flask-Login
-@login_manager.user_loader
-def load_user(user_id):
-    return db.session.get(User, int(user_id))
+    # Flask-Login setup
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = 'login'
+    login_manager.login_message = 'Please log in to access this page.'
+    login_manager.login_message_category = 'info'
 
-# Database Models
-class Patient(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    age = db.Column(db.Integer, nullable=False)
-    phone_number = db.Column(db.String(15), nullable=False)
-    address = db.Column(db.String(200), nullable=False)
-    visits = db.relationship('Visit', backref='patient', lazy=True, cascade="all, delete-orphan")
-    
-    def __repr__(self):
-        return f'<Patient {self.name}>'
+    @login_manager.user_loader
+    def load_user(user_id):
+        from models import User
+        return User.query.get(int(user_id))
 
-class Visit(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('patient.id'), nullable=False)
-    visit_type = db.Column(db.String(50), nullable=False)
-    date_of_visit = db.Column(db.Date, nullable=False)
-    days_left = db.Column(db.Integer, nullable=True)
-    remarks = db.Column(db.Text)
-    billing = db.relationship('Billing', backref='visit', uselist=False, cascade="all, delete-orphan")
-    
-    def __repr__(self):
-        return f'<Visit {self.id} for Patient {self.patient_id}>'
+    # Configure logging
+    configure_logging(app)
 
-class Billing(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    visit_id = db.Column(db.Integer, db.ForeignKey('visit.id'), nullable=False)
-    package = db.Column(db.String(100))
-    bill_amount = db.Column(db.Float)
-    payment_status = db.Column(db.String(50))
-    mode_of_payment = db.Column(db.String(50))
-    
-    def __repr__(self):
-        return f'<Billing {self.id}>'
-
-# Helper function to create tables (uncomment once to use)
-def create_tables():
+    # Create database tables and default data
     with app.app_context():
+        create_default_data()
+
+    # Register error handlers
+    register_error_handlers(app)
+
+    # Health check endpoint
+    @app.route('/health')
+    def health_check():
+        """Health check endpoint for monitoring"""
+        try:
+            # Check database connection
+            db.session.execute('SELECT 1')
+            return jsonify({
+                'status': 'healthy',
+                'database': 'connected',
+                'timestamp': datetime.utcnow().isoformat(),
+                'version': '1.0.0'
+            }), 200
+        except Exception as e:
+            return jsonify({
+                'status': 'unhealthy',
+                'database': 'disconnected',
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat()
+            }), 500
+
+    return app
+
+def configure_logging(app):
+    """Configure application logging"""
+    if not app.debug and not app.testing:
+        # Production logging
+        if not os.path.exists('logs'):
+            os.mkdir('logs')
+
+        file_handler = logging.FileHandler('logs/hospital_crm.log')
+        file_handler.setFormatter(logging.Formatter(
+            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+        ))
+        file_handler.setLevel(logging.INFO)
+        app.logger.addHandler(file_handler)
+
+        app.logger.setLevel(logging.INFO)
+        app.logger.info('Hospital CRM startup')
+
+def create_default_data():
+    """Create default users and system settings"""
+    from models import db, User, UserRole, SystemSetting, TreatmentPackage
+
+    try:
+        # Create tables
         db.create_all()
-        # Add a default user for testing
-        if not User.query.filter_by(username='admin').first():
-            user = User(username='admin')
-            user.set_password('1234')
-            db.session.add(user)
-            db.session.commit()
-            print("Default admin user created with username 'admin' and password '1234'")
-        print("Database tables created!")
 
-# Routes
-@app.route('/')
-def home():
-    query = request.args.get('query')
-    
-    if query:
-        search = "%{}%".format(query)
-        patients = db.session.query(Patient).filter(
-            or_(
-                Patient.name.ilike(search),
-                Patient.phone_number.ilike(search)
+        # Create super admin if not exists
+        if not User.query.filter_by(username='superadmin').first():
+            super_admin = User(
+                username='superadmin',
+                email='admin@hospital.com',
+                first_name='Super',
+                last_name='Admin',
+                role=UserRole.SUPER_ADMIN,
+                phone='+1234567890'
             )
-        ).all()
-    else:
-        patients = db.session.query(Patient).all()
-        
-    return render_template('index.html', patients=patients)
+            super_admin.set_password('admin123')
+            db.session.add(super_admin)
 
-# Login route
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            login_user(user)
-            flash('Logged in successfully.', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Invalid username or password.', 'danger')
-    return render_template('login.html')
+        # Create default doctor
+        if not User.query.filter_by(username='doctor').first():
+            doctor = User(
+                username='doctor',
+                email='doctor@hospital.com',
+                first_name='Dr. John',
+                last_name='Smith',
+                role=UserRole.DOCTOR,
+                phone='+1234567891'
+            )
+            doctor.set_password('doctor123')
+            db.session.add(doctor)
 
-# Logout route
-@app.route('/logout')
-def logout():
-    logout_user()
-    flash('You have been logged out.', 'info')
-    return redirect(url_for('home'))
-
-@app.route('/add_patient', methods=['POST'])
-def add_patient():
-    if request.method == 'POST':
-        name = request.form['name']
-        age = request.form['age']
-        phone_number = request.form['phone_number']
-        address = request.form['address']
-        new_patient = Patient(name=name, age=age, phone_number=phone_number, address=address)
-        db.session.add(new_patient)
         db.session.commit()
-        flash('Patient added successfully!')
+        print("✅ Default data created successfully!")
+
+    except Exception as e:
+        print(f"❌ Error creating default data: {e}")
+        db.session.rollback()
+
+def register_error_handlers(app):
+    """Register error handlers"""
+    @app.errorhandler(404)
+    def not_found_error(error):
+        if request.path.startswith('/api/'):
+            return jsonify({'error': 'Not found'}), 404
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def internal_error(error):
+        from models import db
+        db.session.rollback()
+        if request.path.startswith('/api/'):
+            return jsonify({'error': 'Internal server error'}), 500
+        return render_template('errors/500.html'), 500
+
+    # Legacy routes for backward compatibility
+    @app.route('/')
+    def home():
+        from models import Patient
+        query = request.args.get('query')
+
+        if query:
+            search = "%{}%".format(query)
+            patients = Patient.query.filter(
+                or_(
+                    Patient.first_name.ilike(search),
+                    Patient.last_name.ilike(search),
+                    Patient.phone.ilike(search)
+                )
+            ).all()
+        else:
+            patients = Patient.query.filter_by(is_active=True).all()
+
+        return render_template('index.html', patients=patients)
+
+    # Login route
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        from models import User
+        if request.method == 'POST':
+            username = request.form['username']
+            password = request.form['password']
+            user = User.query.filter_by(username=username).first()
+
+            if user and user.check_password(password) and user.is_active:
+                login_user(user)
+                user.last_login = datetime.utcnow()
+                db.session.commit()
+                flash(f'Welcome back, {user.full_name}!', 'success')
+                next_page = request.args.get('next')
+                return redirect(next_page) if next_page else redirect(url_for('dashboard'))
+            else:
+                flash('Invalid username or password.', 'danger')
+        return render_template('login.html')
+
+    # Logout route
+    @app.route('/logout')
+    @login_required
+    def logout():
+        logout_user()
+        flash('You have been logged out.', 'info')
         return redirect(url_for('home'))
+
+    @app.route('/add_patient', methods=['POST'])
+    @login_required
+    def add_patient():
+        from models import Patient
+        if request.method == 'POST':
+            first_name = request.form['first_name']
+            last_name = request.form['last_name']
+            phone = request.form['phone']
+            email = request.form.get('email')
+            address = request.form.get('address')
+
+            # Generate patient ID
+            patient_count = Patient.query.count()
+            patient_id = f"P{patient_count + 1:06d}"
+
+            new_patient = Patient(
+                patient_id=patient_id,
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone,
+                email=email,
+                address=address
+            )
+            db.session.add(new_patient)
+            db.session.commit()
+            flash('Patient added successfully!')
+            return redirect(url_for('home'))
 
 @app.route('/add_visit/<int:patient_id>', methods=['POST'])
 def add_visit(patient_id):
@@ -355,7 +441,44 @@ def send_bill(visit_id):
 
     return redirect(url_for('home'))
 
+    @app.route('/dashboard')
+    @login_required
+    def dashboard():
+        from models import Patient, Appointment, AppointmentStatus, UserRole
+
+        # Get dashboard statistics based on user role
+        stats = {}
+
+        if current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
+            # Admin dashboard with full statistics
+            stats = {
+                'total_patients': Patient.query.filter_by(is_active=True).count(),
+                'total_appointments_today': Appointment.query.filter_by(
+                    appointment_date=date.today()
+                ).count(),
+                'pending_appointments': Appointment.query.filter_by(
+                    status=AppointmentStatus.PENDING
+                ).count(),
+            }
+        elif current_user.role == UserRole.DOCTOR:
+            # Doctor dashboard
+            stats = {
+                'my_appointments_today': Appointment.query.filter_by(
+                    doctor_id=current_user.id,
+                    appointment_date=date.today()
+                ).count(),
+                'my_patients': Patient.query.join(Appointment).filter(
+                    Appointment.doctor_id == current_user.id
+                ).distinct().count(),
+            }
+
+        # Get recent appointments
+        recent_appointments = Appointment.query.filter_by(
+            appointment_date=date.today()
+        ).order_by(Appointment.appointment_time).limit(5).all()
+
+        return render_template('dashboard.html', stats=stats, recent_appointments=recent_appointments)
+
 if __name__ == '__main__':
-    # REMINDER: This line should be commented out after the first run.
-    # create_tables()
-    app.run(debug=True)
+    app = create_app()
+    app.run(debug=True, host='0.0.0.0', port=5000)

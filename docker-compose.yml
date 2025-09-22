@@ -113,7 +113,7 @@ services:
       target: production
     container_name: hospital_crm_celery
     restart: unless-stopped
-    command: celery -A app_enhanced.celery worker --loglevel=info --concurrency=2
+    command: celery -A wsgi.app.celery worker --loglevel=info --concurrency=2
     environment:
       DATABASE_URL: postgresql://hospital_user:hospital_password_2024@db:5432/hospital_crm
       REDIS_URL: redis://:redis_password_2024@redis:6379/0
@@ -141,7 +141,7 @@ services:
       target: production
     container_name: hospital_crm_beat
     restart: unless-stopped
-    command: celery -A app_enhanced.celery beat --loglevel=info --schedule=/app/celerybeat-schedule
+    command: celery -A wsgi.app.celery beat --loglevel=info --schedule=/app/celerybeat-schedule
     environment:
       DATABASE_URL: postgresql://hospital_user:hospital_password_2024@db:5432/hospital_crm
       REDIS_URL: redis://:redis_password_2024@redis:6379/0

@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block title %}Appointments - Dr. Payal's Clinic CRM{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">
+            <i class="bi bi-calendar-check me-2"></i>
+            Appointments
+        </h1>
+        <p class="text-muted mb-0">Manage patient appointments and schedules</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('appointments.calendar') }}" class="btn btn-outline-primary">
+            <i class="bi bi-calendar3 me-1"></i>
+            Calendar View
+        </a>
+        <a href="{{ url_for('appointments.add_appointment') }}" class="btn btn-success">
+            <i class="bi bi-calendar-plus me-1"></i>
+            New Appointment
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="date" class="form-label">Date</label>
+                <input type="date" class="form-control" id="date" name="date" value="{{ date_filter }}">
+            </div>
+            <div class="col-md-3">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">All Status</option>
+                    <option value="pending" {{ 'selected' if status_filter == 'pending' }}>Pending</option>
+                    <option value="confirmed" {{ 'selected' if status_filter == 'confirmed' }}>Confirmed</option>
+                    <option value="completed" {{ 'selected' if status_filter == 'completed' }}>Completed</option>
+                    <option value="cancelled" {{ 'selected' if status_filter == 'cancelled' }}>Cancelled</option>
+                </select>
+            </div>
+            {% if current_user.role.value in ['super_admin', 'admin', 'staff'] %}
+            <div class="col-md-3">
+                <label for="doctor" class="form-label">Doctor</label>
+                <select class="form-select" id="doctor" name="doctor_id">
+                    <option value="">All Doctors</option>
+                    {% for doctor in doctors %}
+                    <option value="{{ doctor.id }}" {{ 'selected' if doctor_filter == doctor.id|string }}>
+                        {{ doctor.full_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-funnel me-1"></i>
+                    Filter
+                </button>
+                <a href="{{ url_for('appointments.list_appointments') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle me-1"></i>
+                    Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ stats.today_total or 0 }}</h5>
+                <p class="card-text text-muted">Today's Appointments</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning">{{ stats.pending or 0 }}</h5>
+                <p class="card-text text-muted">Pending</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-success">{{ stats.confirmed or 0 }}</h5>
+                <p class="card-text text-muted">Confirmed</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-info">{{ stats.completed or 0 }}</h5>
+                <p class="card-text text-muted">Completed</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Appointments Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-list me-2"></i>
+            Appointment List
+            <span class="badge bg-primary ms-2">{{ appointments.total }} total</span>
+        </h5>
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="bi bi-three-dots"></i>
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="exportAppointments()">
+                    <i class="bi bi-download me-2"></i>Export
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="printSchedule()">
+                    <i class="bi bi-printer me-2"></i>Print Schedule
+                </a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if appointments.items %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Patient</th>
+                        <th>Doctor</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appointment in appointments.items %}
+                    <tr class="{{ 'table-warning' if appointment.is_emergency }}">
+                        <td>
+                            <div>
+                                <strong>{{ appointment.appointment_date.strftime('%b %d, %Y') }}</strong>
+                                <br>
+                                <span class="text-muted">{{ appointment.appointment_time.strftime('%I:%M %p') }}</span>
+                                {% if appointment.is_emergency %}
+                                <span class="badge bg-danger ms-1">Emergency</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                    {{ appointment.patient.first_name[0] }}{{ appointment.patient.last_name[0] }}
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">
+                                        <a href="{{ url_for('patients.view_patient', id=appointment.patient.id) }}" 
+                                           class="text-decoration-none">
+                                            {{ appointment.patient.full_name }}
+                                        </a>
+                                    </div>
+                                    <small class="text-muted">{{ appointment.patient.phone }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <div class="fw-semibold">{{ appointment.doctor.full_name }}</div>
+                                <small class="text-muted">{{ appointment.doctor.specialization or 'General' }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'primary' if appointment.visit_type.value == 'clinic' else 'success' if appointment.visit_type.value == 'home' else 'info' }}">
+                                {{ appointment.visit_type.value.title() }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if appointment.status.value == 'confirmed' else 'warning' if appointment.status.value == 'pending' else 'info' if appointment.status.value == 'completed' else 'danger' }}">
+                                {{ appointment.status.value.title() }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="text-muted">{{ appointment.duration_minutes }} min</span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="viewAppointment({{ appointment.id }})" title="View Details">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                
+                                {% if appointment.status.value == 'pending' %}
+                                <button class="btn btn-outline-success" onclick="confirmAppointment({{ appointment.id }})" title="Confirm">
+                                    <i class="bi bi-check"></i>
+                                </button>
+                                {% endif %}
+                                
+                                {% if appointment.status.value in ['pending', 'confirmed'] %}
+                                <button class="btn btn-outline-warning" onclick="editAppointment({{ appointment.id }})" title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="cancelAppointment({{ appointment.id }})" title="Cancel">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                                {% endif %}
+                                
+                                {% if appointment.visit_type.value == 'online' and appointment.status.value == 'confirmed' %}
+                                <button class="btn btn-outline-info" onclick="startConsultation({{ appointment.id }})" title="Start Consultation">
+                                    <i class="bi bi-camera-video"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if appointments.pages > 1 %}
+        <div class="card-footer">
+            <nav aria-label="Appointment pagination">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if appointments.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('appointments.list_appointments', page=appointments.prev_num, date=date_filter, status=status_filter, doctor_id=doctor_filter) }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page_num in appointments.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != appointments.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('appointments.list_appointments', page=page_num, date=date_filter, status=status_filter, doctor_id=doctor_filter) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if appointments.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('appointments.list_appointments', page=appointments.next_num, date=date_filter, status=status_filter, doctor_id=doctor_filter) }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-calendar-x text-muted" style="font-size: 4rem;"></i>
+            <h4 class="text-muted mt-3">No appointments found</h4>
+            {% if date_filter or status_filter or doctor_filter %}
+            <p class="text-muted">No appointments match your filter criteria.</p>
+            <a href="{{ url_for('appointments.list_appointments') }}" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left me-1"></i>
+                View All Appointments
+            </a>
+            {% else %}
+            <p class="text-muted">Start by scheduling your first appointment.</p>
+            <a href="{{ url_for('appointments.add_appointment') }}" class="btn btn-success">
+                <i class="bi bi-calendar-plus me-1"></i>
+                Schedule First Appointment
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .avatar-sm {
+        width: 40px;
+        height: 40px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(44, 90, 160, 0.05);
+    }
+    
+    .table-warning {
+        background-color: rgba(255, 193, 7, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function viewAppointment(appointmentId) {
+        window.location.href = `/appointments/${appointmentId}`;
+    }
+    
+    function confirmAppointment(appointmentId) {
+        if (confirm('Are you sure you want to confirm this appointment?')) {
+            fetch(`/api/appointments/${appointmentId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status: 'confirmed' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    location.reload();
+                } else {
+                    alert('Error confirming appointment: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error confirming appointment');
+            });
+        }
+    }
+    
+    function editAppointment(appointmentId) {
+        window.location.href = `/appointments/${appointmentId}/edit`;
+    }
+    
+    function cancelAppointment(appointmentId) {
+        const reason = prompt('Please provide a reason for cancellation:');
+        if (reason) {
+            fetch(`/api/appointments/${appointmentId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    status: 'cancelled',
+                    reason: reason
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    location.reload();
+                } else {
+                    alert('Error cancelling appointment: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Error cancelling appointment');
+            });
+        }
+    }
+    
+    function startConsultation(appointmentId) {
+        window.open(`/consultations/${appointmentId}/start`, '_blank');
+    }
+    
+    function exportAppointments() {
+        const params = new URLSearchParams(window.location.search);
+        window.location.href = '/api/appointments/export?' + params.toString();
+    }
+    
+    function printSchedule() {
+        window.print();
+    }
+</script>
+{% endblock %}

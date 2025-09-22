@@ -34,7 +34,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y \
     libpq5 \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    procps \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
@@ -48,6 +50,10 @@ COPY --from=builder /root/.local /root/.local
 # Copy application code
 COPY . .
 
+# Copy health check script
+COPY scripts/health_check.py /usr/local/bin/health_check.py
+RUN chmod +x /usr/local/bin/health_check.py
+
 # Create necessary directories
 RUN mkdir -p /app/logs /app/uploads /app/static/uploads && \
     chown -R appuser:appuser /app
@@ -60,7 +66,7 @@ EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5000/health || exit 1
+    CMD python3 /usr/local/bin/health_check.py || exit 1
 
 # Default command
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--worker-class", "gevent", "--worker-connections", "1000", "--timeout", "120", "--keepalive", "2", "--max-requests", "1000", "--max-requests-jitter", "100", "--access-logfile", "-", "--error-logfile", "-", "app_enhanced:create_app()"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--worker-class", "gevent", "--worker-connections", "1000", "--timeout", "120", "--keepalive", "2", "--max-requests", "1000", "--max-requests-jitter", "100", "--access-logfile", "-", "--error-logfile", "-", "wsgi:app"]

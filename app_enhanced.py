@@ -24,16 +24,29 @@ from services.chatbot_service import ChatbotService
 from services.appointment_service import AppointmentService
 from services.billing_service import BillingService
 
-def create_app():
+def create_app(config_name=None):
+    """Application factory pattern"""
     app = Flask(__name__)
-    
-    # Configuration
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-in-production')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
-        'DATABASE_URL', 
-        'postgresql://user:password@localhost/hospital_crm'
-    )
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Load configuration
+    if config_name is None:
+        config_name = os.environ.get('FLASK_ENV', 'development')
+
+    from config import config
+    app.config.from_object(config[config_name])
+
+    # Initialize Sentry if configured
+    if app.config.get('SENTRY_DSN'):
+        try:
+            import sentry_sdk
+            from sentry_sdk.integrations.flask import FlaskIntegration
+            sentry_sdk.init(
+                dsn=app.config['SENTRY_DSN'],
+                integrations=[FlaskIntegration()],
+                traces_sample_rate=1.0
+            )
+        except ImportError:
+            pass
     
     # Initialize extensions
     db.init_app(app)
@@ -64,6 +77,9 @@ def create_app():
             return decorated_function
         return decorator
     
+    # Register blueprints
+    register_blueprints(app)
+
     # Initialize services
     whatsapp_service = WhatsAppService()
     chatbot_service = ChatbotService()
@@ -71,8 +87,7 @@ def create_app():
     billing_service = BillingService()
     
     # Create tables and default data
-    @app.before_first_request
-    def create_tables():
+    with app.app_context():
         db.create_all()
         create_default_data()
     
@@ -292,6 +307,22 @@ def create_app():
         return render_template('dashboard/main.html', stats=stats, recent_appointments=recent_appointments)
     
     return app
+
+def register_blueprints(app):
+    """Register application blueprints"""
+    from routes.auth import auth_bp
+    from routes.main import main_bp
+    from routes.patients import patients_bp
+    from routes.appointments import appointments_bp
+    from routes.billing import billing_bp
+    from routes.api import api_bp
+
+    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(main_bp)
+    app.register_blueprint(patients_bp, url_prefix='/patients')
+    app.register_blueprint(appointments_bp, url_prefix='/appointments')
+    app.register_blueprint(billing_bp, url_prefix='/billing')
+    app.register_blueprint(api_bp, url_prefix='/api')
 
 if __name__ == '__main__':
     app = create_app()
