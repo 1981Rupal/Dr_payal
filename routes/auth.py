@@ -1,9 +1,8 @@
 # routes/auth.py - Authentication routes
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
-from werkzeug.security import check_password_hash
-from datetime import datetime
+from datetime import datetime, timezone
 from models import db, User, AuditLog
 
 auth_bp = Blueprint('auth', __name__)
@@ -27,7 +26,7 @@ def login():
         
         if user and user.check_password(password) and user.is_active:
             login_user(user, remember=remember_me)
-            user.last_login = datetime.utcnow()
+            user.last_login = datetime.now(timezone.utc)
             
             # Log the login
             audit_log = AuditLog(

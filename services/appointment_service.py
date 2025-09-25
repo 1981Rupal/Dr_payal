@@ -1,6 +1,6 @@
 # services/appointment_service.py - Appointment Management Service
 
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time, timedelta, timezone
 from models import (
     db, Appointment, Patient, User, OnlineConsultation,
     AppointmentStatus, VisitType, ConsultationStatus, UserRole
@@ -59,7 +59,7 @@ class AppointmentService:
                 return False, "Appointment is not in pending status."
             
             appointment.status = AppointmentStatus.CONFIRMED
-            appointment.confirmed_at = datetime.utcnow()
+            appointment.confirmed_at = datetime.now(timezone.utc)
             
             # Create online consultation if needed
             if appointment.visit_type == VisitType.ONLINE:
@@ -89,7 +89,7 @@ class AppointmentService:
                 return False, "Cannot cancel a completed appointment."
             
             appointment.status = AppointmentStatus.CANCELLED
-            appointment.cancelled_at = datetime.utcnow()
+            appointment.cancelled_at = datetime.now(timezone.utc)
             appointment.cancellation_reason = cancellation_reason
             
             # Cancel online consultation if exists
@@ -218,7 +218,7 @@ class AppointmentService:
         """Create online consultation for an appointment"""
         try:
             # Generate meeting details (in a real implementation, integrate with video service)
-            meeting_id = f"meeting_{appointment.id}_{datetime.utcnow().strftime('%Y%m%d%H%M')}"
+            meeting_id = f"meeting_{appointment.id}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M')}"
             meeting_url = f"https://meet.clinic.com/room/{meeting_id}"
             meeting_password = f"clinic{appointment.id}"
             

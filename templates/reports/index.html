@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Reports & Analytics - Dr. Payal's Clinic CRM{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-primary mb-1">
+                <i class="bi bi-graph-up me-2"></i>
+                Reports & Analytics
+            </h2>
+            <p class="text-muted mb-0">Comprehensive reports and business insights</p>
+        </div>
+        <div>
+            <button class="btn btn-outline-primary" onclick="exportAllReports()">
+                <i class="bi bi-download me-1"></i>
+                Export All
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-primary">{{ stats.total_patients or 0 }}</h3>
+                    <p class="text-muted mb-0">Total Patients</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-success">₹{{ stats.total_revenue or 0 }}</h3>
+                    <p class="text-muted mb-0">Total Revenue</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-info">{{ stats.total_appointments or 0 }}</h3>
+                    <p class="text-muted mb-0">Total Appointments</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h3 class="text-warning">{{ stats.pending_bills or 0 }}</h3>
+                    <p class="text-muted mb-0">Pending Bills</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Categories -->
+    <div class="row">
+        <!-- Patient Reports -->
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-people me-2"></i>
+                        Patient Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('main.patient_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-person-lines-fill me-2"></i>
+                            Patient Demographics
+                        </a>
+                        <a href="{{ url_for('main.patient_visits_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-calendar-check me-2"></i>
+                            Patient Visit History
+                        </a>
+                        <a href="{{ url_for('main.new_patients_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-person-plus me-2"></i>
+                            New Patient Registrations
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Reports -->
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-currency-rupee me-2"></i>
+                        Financial Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('main.revenue_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-graph-up me-2"></i>
+                            Revenue Analysis
+                        </a>
+                        <a href="{{ url_for('main.payment_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-credit-card me-2"></i>
+                            Payment Summary
+                        </a>
+                        <a href="{{ url_for('main.outstanding_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Outstanding Payments
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Appointment Reports -->
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar3 me-2"></i>
+                        Appointment Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('main.appointment_summary_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-calendar-week me-2"></i>
+                            Appointment Summary
+                        </a>
+                        <a href="{{ url_for('main.doctor_schedule_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-person-badge me-2"></i>
+                            Doctor Schedules
+                        </a>
+                        <a href="{{ url_for('main.cancellation_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-x-circle me-2"></i>
+                            Cancellation Analysis
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Treatment Reports -->
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-heart-pulse me-2"></i>
+                        Treatment Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('main.treatment_effectiveness_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-activity me-2"></i>
+                            Treatment Effectiveness
+                        </a>
+                        <a href="{{ url_for('main.package_utilization_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-box-seam me-2"></i>
+                            Package Utilization
+                        </a>
+                        <a href="{{ url_for('main.prescription_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-prescription2 me-2"></i>
+                            Prescription Analysis
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Reports -->
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-gear me-2"></i>
+                        System Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="{{ url_for('main.user_activity_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-person-check me-2"></i>
+                            User Activity
+                        </a>
+                        <a href="{{ url_for('main.audit_log_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-journal-text me-2"></i>
+                            Audit Logs
+                        </a>
+                        <a href="{{ url_for('main.system_performance_report') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-speedometer2 me-2"></i>
+                            System Performance
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Reports -->
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-sliders me-2"></i>
+                        Custom Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Create custom reports with specific date ranges and filters.</p>
+                    <a href="{{ url_for('main.custom_report_builder') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        Build Custom Report
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportAllReports() {
+    if (confirm('This will generate and download all available reports. Continue?')) {
+        window.location.href = "{{ url_for('main.export_all_reports') }}";
+    }
+}
+</script>
+{% endblock %}

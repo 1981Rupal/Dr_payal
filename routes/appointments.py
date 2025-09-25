@@ -50,10 +50,20 @@ def list_appointments():
     
     # Get doctors for filter dropdown
     doctors = User.query.filter_by(role=UserRole.DOCTOR, is_active=True).all()
-    
-    return render_template('appointments/list.html', 
+
+    # Calculate stats for the template
+    today = date.today()
+    stats = {
+        'today_total': Appointment.query.filter_by(appointment_date=today).count(),
+        'pending_total': Appointment.query.filter_by(status=AppointmentStatus.SCHEDULED).count(),
+        'completed_total': Appointment.query.filter_by(status=AppointmentStatus.COMPLETED).count(),
+        'cancelled_total': Appointment.query.filter_by(status=AppointmentStatus.CANCELLED).count()
+    }
+
+    return render_template('appointments/list.html',
                          appointments=appointments,
                          doctors=doctors,
+                         stats=stats,
                          status_filter=status_filter,
                          date_filter=date_filter,
                          doctor_filter=doctor_filter)

@@ -3,7 +3,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from enum import Enum
 import uuid
 
@@ -57,8 +57,8 @@ class User(UserMixin, db.Model):
     last_name = db.Column(db.String(50), nullable=False)
     phone = db.Column(db.String(15))
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     last_login = db.Column(db.DateTime)
     
     # Relationships
@@ -116,8 +116,8 @@ class Patient(db.Model):
     current_medications = db.Column(db.Text)
     insurance_details = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # User account for patient portal
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -160,8 +160,8 @@ class Visit(db.Model):
     follow_up_date = db.Column(db.Date)
     is_follow_up = db.Column(db.Boolean, default=False)
     parent_visit_id = db.Column(db.Integer, db.ForeignKey('visits.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     billing = db.relationship('Billing', backref='visit', uselist=False, cascade="all, delete-orphan")
@@ -189,8 +189,8 @@ class Appointment(db.Model):
     cancelled_at = db.Column(db.DateTime)
     cancellation_reason = db.Column(db.Text)
     reminder_sent = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     consultation = db.relationship('OnlineConsultation', backref='appointment', uselist=False)
@@ -208,8 +208,8 @@ class TreatmentPackage(db.Model):
     total_price = db.Column(db.Float, nullable=False)
     validity_days = db.Column(db.Integer, default=90)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     patient_packages = db.relationship('PatientPackage', backref='package', cascade="all, delete-orphan")
@@ -226,7 +226,7 @@ class PatientPackage(db.Model):
     start_date = db.Column(db.Date, nullable=False)
     expiry_date = db.Column(db.Date, nullable=False)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     patient = db.relationship('Patient', backref='packages')
@@ -245,8 +245,8 @@ class Billing(db.Model):
     tax_amount = db.Column(db.Float, default=0)
     total_amount = db.Column(db.Float, nullable=False)
     payment_status = db.Column(db.Enum(PaymentStatus), default=PaymentStatus.PENDING)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     payments = db.relationship('Payment', backref='billing', cascade="all, delete-orphan")
@@ -263,9 +263,9 @@ class Payment(db.Model):
     amount = db.Column(db.Float, nullable=False)
     payment_method = db.Column(db.String(50), nullable=False)  # cash, card, upi, bank_transfer
     transaction_id = db.Column(db.String(100))
-    payment_date = db.Column(db.DateTime, default=datetime.utcnow)
+    payment_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 # Prescription Management
 class Prescription(db.Model):
@@ -281,8 +281,8 @@ class Prescription(db.Model):
     instructions = db.Column(db.Text)
     follow_up_date = db.Column(db.Date)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     medications = db.relationship('PrescriptionMedication', backref='prescription', cascade="all, delete-orphan")
@@ -297,7 +297,7 @@ class PrescriptionMedication(db.Model):
     frequency = db.Column(db.String(100), nullable=False)
     duration = db.Column(db.String(100), nullable=False)
     instructions = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 # Online Consultation Platform
 class OnlineConsultation(db.Model):
@@ -317,8 +317,8 @@ class OnlineConsultation(db.Model):
     duration_minutes = db.Column(db.Integer)
     recording_url = db.Column(db.String(500))
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 # AI Chatbot Interactions
 class ChatbotConversation(db.Model):
@@ -330,8 +330,8 @@ class ChatbotConversation(db.Model):
     phone_number = db.Column(db.String(15), nullable=False)
     session_id = db.Column(db.String(100), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     messages = db.relationship('ChatbotMessage', backref='conversation', cascade="all, delete-orphan")
@@ -345,7 +345,7 @@ class ChatbotMessage(db.Model):
     message_text = db.Column(db.Text, nullable=False)
     intent = db.Column(db.String(100))  # detected intent
     entities = db.Column(db.Text)  # JSON string of extracted entities
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 # WhatsApp Integration
 class WhatsAppMessage(db.Model):
@@ -361,7 +361,7 @@ class WhatsAppMessage(db.Model):
     twilio_sid = db.Column(db.String(100))
     sent_at = db.Column(db.DateTime)
     delivered_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 # System Settings
 class SystemSetting(db.Model):
@@ -371,8 +371,8 @@ class SystemSetting(db.Model):
     key = db.Column(db.String(100), unique=True, nullable=False)
     value = db.Column(db.Text)
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 # Audit Log
 class AuditLog(db.Model):
@@ -387,7 +387,7 @@ class AuditLog(db.Model):
     new_values = db.Column(db.Text)  # JSON string
     ip_address = db.Column(db.String(45))
     user_agent = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # Relationships
     user = db.relationship('User', backref='audit_logs')

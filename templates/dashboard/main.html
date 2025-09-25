@@ -307,6 +307,13 @@
                         Create Prescription
                     </button>
                     {% endif %}
+
+                    {% if current_user.role.value in ['SUPER_ADMIN', 'ADMIN'] %}
+                    <a href="{{ url_for('main.test_whatsapp') }}" class="btn btn-outline-warning">
+                        <i class="bi bi-whatsapp me-2"></i>
+                        Test WhatsApp
+                    </a>
+                    {% endif %}
                     
                     {% if current_user.can_access('billing') %}
                     <button class="btn btn-outline-warning" onclick="openBillingModule()">

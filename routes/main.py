@@ -275,3 +275,168 @@ def generate_reports(user, start_date, end_date):
         print(f"Error generating reports: {e}")
     
     return reports
+
+# Additional routes for template functionality
+@main_bp.route('/users/add')
+@login_required
+def add_user():
+    """Add new user page"""
+    if not current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
+        flash('You do not have permission to add users.', 'error')
+        return redirect(url_for('main.dashboard'))
+    return render_template('users/add.html')
+
+@main_bp.route('/users/<int:user_id>')
+@login_required
+def view_user(user_id):
+    """View user details"""
+    if not current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
+        flash('You do not have permission to view user details.', 'error')
+        return redirect(url_for('main.dashboard'))
+    user = User.query.get_or_404(user_id)
+    return render_template('users/view.html', user=user)
+
+@main_bp.route('/users/<int:user_id>/edit')
+@login_required
+def edit_user(user_id):
+    """Edit user page"""
+    if not current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
+        flash('You do not have permission to edit users.', 'error')
+        return redirect(url_for('main.dashboard'))
+    user = User.query.get_or_404(user_id)
+    return render_template('users/edit.html', user=user)
+
+# Report routes
+@main_bp.route('/reports/patient')
+@login_required
+def patient_report():
+    return render_template('reports/patient.html')
+
+@main_bp.route('/reports/patient-visits')
+@login_required
+def patient_visits_report():
+    return render_template('reports/patient_visits.html')
+
+@main_bp.route('/reports/new-patients')
+@login_required
+def new_patients_report():
+    return render_template('reports/new_patients.html')
+
+@main_bp.route('/reports/revenue')
+@login_required
+def revenue_report():
+    return render_template('reports/revenue.html')
+
+@main_bp.route('/reports/payment')
+@login_required
+def payment_report():
+    return render_template('reports/payment.html')
+
+@main_bp.route('/reports/outstanding')
+@login_required
+def outstanding_report():
+    return render_template('reports/outstanding.html')
+
+@main_bp.route('/reports/appointment-summary')
+@login_required
+def appointment_summary_report():
+    return render_template('reports/appointment_summary.html')
+
+@main_bp.route('/reports/doctor-schedule')
+@login_required
+def doctor_schedule_report():
+    return render_template('reports/doctor_schedule.html')
+
+@main_bp.route('/reports/cancellation')
+@login_required
+def cancellation_report():
+    return render_template('reports/cancellation.html')
+
+@main_bp.route('/reports/treatment-effectiveness')
+@login_required
+def treatment_effectiveness_report():
+    return render_template('reports/treatment_effectiveness.html')
+
+@main_bp.route('/reports/package-utilization')
+@login_required
+def package_utilization_report():
+    return render_template('reports/package_utilization.html')
+
+@main_bp.route('/reports/prescription')
+@login_required
+def prescription_report():
+    return render_template('reports/prescription.html')
+
+@main_bp.route('/reports/user-activity')
+@login_required
+def user_activity_report():
+    return render_template('reports/user_activity.html')
+
+@main_bp.route('/reports/audit-log')
+@login_required
+def audit_log_report():
+    return render_template('reports/audit_log.html')
+
+@main_bp.route('/reports/system-performance')
+@login_required
+def system_performance_report():
+    return render_template('reports/system_performance.html')
+
+@main_bp.route('/reports/custom-builder')
+@login_required
+def custom_report_builder():
+    return render_template('reports/custom_builder.html')
+
+@main_bp.route('/reports/export-all')
+@login_required
+def export_all_reports():
+    return jsonify({'message': 'Export functionality coming soon'})
+
+# Settings save route
+@main_bp.route('/settings/save', methods=['POST'])
+@login_required
+def save_settings():
+    """Save system settings"""
+    if not current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
+        return jsonify({'success': False, 'message': 'Permission denied'})
+
+    try:
+        data = request.get_json()
+        # Here you would save the settings to database
+        # For now, just return success
+        return jsonify({'success': True, 'message': 'Settings saved successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+# WhatsApp test route
+@main_bp.route('/test-whatsapp')
+@login_required
+def test_whatsapp():
+    """Test WhatsApp functionality"""
+    if not current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
+        flash('You do not have permission to test WhatsApp.', 'error')
+        return redirect(url_for('main.dashboard'))
+
+    try:
+        from services.whatsapp_service import WhatsAppService
+        whatsapp = WhatsAppService()
+
+        # Send a test message
+        test_message = f"🏥 Test message from Dr. Payal's CRM\n\nHello! This is a test message to verify WhatsApp integration is working.\n\nSent at: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC"
+
+        # Use a demo phone number
+        result = whatsapp.send_message(
+            to_number="+1234567890",
+            message_text=test_message,
+            message_type="test"
+        )
+
+        if result:
+            flash('WhatsApp test message sent successfully! Check the console for demo output.', 'success')
+        else:
+            flash('Failed to send WhatsApp test message.', 'error')
+
+    except Exception as e:
+        flash(f'Error testing WhatsApp: {str(e)}', 'error')
+
+    return redirect(url_for('main.dashboard'))

@@ -361,7 +361,17 @@ def billing_reports():
         flash(f'Error generating reports: {str(e)}', 'error')
         reports = {}
     
-    return render_template('billing/reports.html', 
+    return render_template('billing/reports.html',
                          reports=reports,
                          start_date=start_date,
                          end_date=end_date)
+
+@billing_bp.route('/packages/<int:package_id>/edit')
+@login_required
+def edit_package(package_id):
+    """Edit treatment package"""
+    if not current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
+        flash('You do not have permission to edit packages.', 'error')
+        return redirect(url_for('main.dashboard'))
+    package = TreatmentPackage.query.get_or_404(package_id)
+    return render_template('billing/edit_package.html', package=package)

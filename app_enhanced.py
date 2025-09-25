@@ -1,14 +1,11 @@
 # app_enhanced.py - Enhanced Hospital CRM Application
 
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_migrate import Migrate
-from werkzeug.security import generate_password_hash
-from datetime import datetime, date, timedelta
-import uuid
+from datetime import datetime, date, timezone
 from functools import wraps
-import json
 
 # Import our enhanced models
 from models import (
@@ -184,9 +181,9 @@ def create_app(config_name=None):
             
             if user and user.check_password(password) and user.is_active:
                 login_user(user)
-                user.last_login = datetime.utcnow()
+                user.last_login = datetime.now(timezone.utc)
                 db.session.commit()
-                
+
                 # Log the login
                 audit_log = AuditLog(
                     user_id=user.id,
@@ -236,14 +233,14 @@ def create_app(config_name=None):
             return jsonify({
                 'status': 'healthy',
                 'database': 'connected',
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }), 200
         except Exception as e:
             return jsonify({
                 'status': 'unhealthy',
                 'database': 'disconnected',
                 'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }), 500
 
     # Main dashboard

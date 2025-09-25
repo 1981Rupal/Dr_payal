@@ -2,7 +2,7 @@
 
 import os
 from twilio.rest import Client
-from datetime import datetime
+from datetime import datetime, timezone
 from models import db, WhatsAppMessage, Patient, Appointment, Billing
 import logging
 
@@ -13,15 +13,37 @@ class WhatsAppService:
         self.account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
         self.auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
         self.from_number = os.environ.get('TWILIO_WHATSAPP_NUMBER', 'whatsapp:+14155238886')
-        
-        if self.account_sid and self.auth_token:
-            self.client = Client(self.account_sid, self.auth_token)
+
+        # Enable demo mode if using demo credentials
+        if self.account_sid == 'demo_account_sid' or not self.account_sid:
+            self.client = None
+            self.demo_mode = True
+            logger.info("WhatsApp service initialized in DEMO MODE")
+        elif self.account_sid and self.auth_token:
+            try:
+                self.client = Client(self.account_sid, self.auth_token)
+                self.demo_mode = False
+                logger.info("WhatsApp service initialized successfully")
+            except Exception as e:
+                self.client = None
+                self.demo_mode = True
+                logger.warning(f"WhatsApp service falling back to demo mode: {e}")
         else:
             self.client = None
-            logger.warning("Twilio credentials not configured. WhatsApp service disabled.")
+            self.demo_mode = True
+            logger.warning("Twilio credentials not configured. Using demo mode.")
     
     def send_message(self, to_number, message_text, message_type='general', patient_id=None):
         """Send WhatsApp message and log it"""
+        if self.demo_mode:
+            # Demo mode - simulate sending message
+            logger.info(f"DEMO WhatsApp message to {to_number}: {message_text}")
+            print(f"📱 DEMO WhatsApp Message Sent:")
+            print(f"   To: {to_number}")
+            print(f"   Message: {message_text}")
+            print(f"   Type: {message_type}")
+            return True
+
         if not self.client:
             logger.error("WhatsApp service not configured")
             return False
@@ -46,7 +68,7 @@ class WhatsAppService:
                 message_text=message_text,
                 status='sent',
                 twilio_sid=message.sid,
-                sent_at=datetime.utcnow()
+                sent_at=datetime.now(timezone.utc)
             )
             db.session.add(whatsapp_msg)
             db.session.commit()

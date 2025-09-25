@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}System Settings - Dr. Payal's Clinic CRM{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-primary mb-1">
+                <i class="bi bi-gear me-2"></i>
+                System Settings
+            </h2>
+            <p class="text-muted mb-0">Configure system preferences and clinic information</p>
+        </div>
+        <div>
+            <button class="btn btn-success" onclick="saveAllSettings()">
+                <i class="bi bi-check-circle me-1"></i>
+                Save All Changes
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Clinic Information -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-building me-2"></i>
+                        Clinic Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="clinicForm">
+                        <div class="mb-3">
+                            <label for="clinic_name" class="form-label">Clinic Name</label>
+                            <input type="text" class="form-control" id="clinic_name" name="clinic_name" 
+                                   value="{{ settings.get('clinic_name', 'Dr. Payal\'s Physiotherapy Clinic') }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="clinic_address" class="form-label">Address</label>
+                            <textarea class="form-control" id="clinic_address" name="clinic_address" rows="3">{{ settings.get('clinic_address', '') }}</textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="clinic_phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="clinic_phone" name="clinic_phone" 
+                                       value="{{ settings.get('clinic_phone', '') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="clinic_email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="clinic_email" name="clinic_email" 
+                                       value="{{ settings.get('clinic_email', '') }}">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Working Hours -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clock me-2"></i>
+                        Working Hours
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="workingHoursForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="working_hours_start" class="form-label">Start Time</label>
+                                <input type="time" class="form-control" id="working_hours_start" name="working_hours_start" 
+                                       value="{{ settings.get('working_hours_start', '09:00') }}">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="working_hours_end" class="form-label">End Time</label>
+                                <input type="time" class="form-control" id="working_hours_end" name="working_hours_end" 
+                                       value="{{ settings.get('working_hours_end', '18:00') }}">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Working Days</label>
+                            <div class="row">
+                                {% set working_days = settings.get('working_days', 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday').split(',') %}
+                                {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="day_{{ day.lower() }}" 
+                                               name="working_days" value="{{ day }}" 
+                                               {{ 'checked' if day in working_days }}>
+                                        <label class="form-check-label" for="day_{{ day.lower() }}">
+                                            {{ day }}
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="default_appointment_duration" class="form-label">Default Appointment Duration (minutes)</label>
+                            <select class="form-select" id="default_appointment_duration" name="default_appointment_duration">
+                                <option value="15" {{ 'selected' if settings.get('default_appointment_duration') == '15' }}>15 minutes</option>
+                                <option value="30" {{ 'selected' if settings.get('default_appointment_duration', '30') == '30' }}>30 minutes</option>
+                                <option value="45" {{ 'selected' if settings.get('default_appointment_duration') == '45' }}>45 minutes</option>
+                                <option value="60" {{ 'selected' if settings.get('default_appointment_duration') == '60' }}>60 minutes</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification Settings -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-bell me-2"></i>
+                        Notification Settings
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="notificationForm">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable_whatsapp" name="enable_whatsapp" 
+                                       {{ 'checked' if settings.get('enable_whatsapp', 'false') == 'true' }}>
+                                <label class="form-check-label" for="enable_whatsapp">
+                                    Enable WhatsApp Notifications
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable_email" name="enable_email" 
+                                       {{ 'checked' if settings.get('enable_email_notifications', 'false') == 'true' }}>
+                                <label class="form-check-label" for="enable_email">
+                                    Enable Email Notifications
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable_sms" name="enable_sms" 
+                                       {{ 'checked' if settings.get('enable_sms_notifications', 'false') == 'true' }}>
+                                <label class="form-check-label" for="enable_sms">
+                                    Enable SMS Notifications
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="reminder_hours" class="form-label">Appointment Reminder (hours before)</label>
+                            <select class="form-select" id="reminder_hours" name="reminder_hours">
+                                <option value="1" {{ 'selected' if settings.get('reminder_hours') == '1' }}>1 hour</option>
+                                <option value="2" {{ 'selected' if settings.get('reminder_hours') == '2' }}>2 hours</option>
+                                <option value="4" {{ 'selected' if settings.get('reminder_hours') == '4' }}>4 hours</option>
+                                <option value="24" {{ 'selected' if settings.get('reminder_hours', '24') == '24' }}>24 hours</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Preferences -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-sliders me-2"></i>
+                        System Preferences
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="systemForm">
+                        <div class="mb-3">
+                            <label for="currency" class="form-label">Currency</label>
+                            <select class="form-select" id="currency" name="currency">
+                                <option value="INR" {{ 'selected' if settings.get('currency', 'INR') == 'INR' }}>Indian Rupee (₹)</option>
+                                <option value="USD" {{ 'selected' if settings.get('currency') == 'USD' }}>US Dollar ($)</option>
+                                <option value="EUR" {{ 'selected' if settings.get('currency') == 'EUR' }}>Euro (€)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="timezone" class="form-label">Timezone</label>
+                            <select class="form-select" id="timezone" name="timezone">
+                                <option value="Asia/Kolkata" {{ 'selected' if settings.get('timezone', 'Asia/Kolkata') == 'Asia/Kolkata' }}>Asia/Kolkata (IST)</option>
+                                <option value="UTC" {{ 'selected' if settings.get('timezone') == 'UTC' }}>UTC</option>
+                                <option value="America/New_York" {{ 'selected' if settings.get('timezone') == 'America/New_York' }}>America/New_York (EST)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="date_format" class="form-label">Date Format</label>
+                            <select class="form-select" id="date_format" name="date_format">
+                                <option value="DD/MM/YYYY" {{ 'selected' if settings.get('date_format', 'DD/MM/YYYY') == 'DD/MM/YYYY' }}>DD/MM/YYYY</option>
+                                <option value="MM/DD/YYYY" {{ 'selected' if settings.get('date_format') == 'MM/DD/YYYY' }}>MM/DD/YYYY</option>
+                                <option value="YYYY-MM-DD" {{ 'selected' if settings.get('date_format') == 'YYYY-MM-DD' }}>YYYY-MM-DD</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enable_chatbot" name="enable_chatbot" 
+                                       {{ 'checked' if settings.get('enable_chatbot', 'false') == 'true' }}>
+                                <label class="form-check-label" for="enable_chatbot">
+                                    Enable AI Chatbot
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function saveAllSettings() {
+    const forms = ['clinicForm', 'workingHoursForm', 'notificationForm', 'systemForm'];
+    const allData = {};
+    
+    forms.forEach(formId => {
+        const form = document.getElementById(formId);
+        const formData = new FormData(form);
+        
+        for (let [key, value] of formData.entries()) {
+            if (key === 'working_days') {
+                if (!allData[key]) allData[key] = [];
+                allData[key].push(value);
+            } else {
+                allData[key] = value;
+            }
+        }
+    });
+    
+    // Handle checkboxes that might not be checked
+    ['enable_whatsapp', 'enable_email', 'enable_sms', 'enable_chatbot'].forEach(checkbox => {
+        if (!allData[checkbox]) {
+            allData[checkbox] = 'false';
+        } else {
+            allData[checkbox] = 'true';
+        }
+    });
+    
+    // Convert working_days array to comma-separated string
+    if (allData.working_days) {
+        allData.working_days = allData.working_days.join(',');
+    }
+    
+    fetch('/settings/save', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify(allData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Settings saved successfully!');
+        } else {
+            alert('Error saving settings: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while saving settings.');
+    });
+}
+</script>
+{% endblock %}

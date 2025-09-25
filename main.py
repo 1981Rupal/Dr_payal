@@ -1,26 +1,22 @@
-# app.py - Main Application Entry Point for Hospital CRM
+# main.py - Main Application Entry Point
 
 import os
-import logging
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_login import login_user, LoginManager, login_required, logout_user, current_user
-from datetime import date, datetime, timezone
-from dotenv import load_dotenv
+import sys
+from flask import Flask
+from datetime import datetime, timezone
 
-# Load environment variables
-load_dotenv()
+# Add the current directory to Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-def create_app(config_name=None):
+def create_app():
     """Create and configure the Flask application"""
     app = Flask(__name__)
     
-    # Configuration
+    # Basic configuration
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
         'DATABASE_URL',
-        'sqlite:///hospital_crm.db'
+        'sqlite:///hospital_crm.db'  # Use SQLite for local development
     )
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
@@ -28,13 +24,11 @@ def create_app(config_name=None):
     from models import db
     db.init_app(app)
     
-    # Initialize Flask-Migrate
-    migrate = Migrate(app, db)
-    
     # Initialize Flask-Login
+    from flask_login import LoginManager
     login_manager = LoginManager()
     login_manager.init_app(app)
-    login_manager.login_view = 'login'
+    login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Please log in to access this page.'
     login_manager.login_message_category = 'info'
     
@@ -43,13 +37,39 @@ def create_app(config_name=None):
         from models import User
         return db.session.get(User, int(user_id))
     
-    # Register error handlers
-    register_error_handlers(app)
+    # Register blueprints
+    try:
+        from routes.auth import auth_bp
+        from routes.main import main_bp
+        from routes.patients import patients_bp
+        from routes.appointments import appointments_bp
+        from routes.billing import billing_bp
+        from routes.api import api_bp
+        
+        app.register_blueprint(auth_bp, url_prefix='/auth')
+        app.register_blueprint(main_bp)
+        app.register_blueprint(patients_bp, url_prefix='/patients')
+        app.register_blueprint(appointments_bp, url_prefix='/appointments')
+        app.register_blueprint(billing_bp, url_prefix='/billing')
+        app.register_blueprint(api_bp, url_prefix='/api')
+    except ImportError as e:
+        print(f"Warning: Could not import some blueprints: {e}")
+        # Create basic routes if blueprints fail
+        create_basic_routes(app)
+    
+    # Create database tables and default data
+    with app.app_context():
+        try:
+            db.create_all()
+            create_default_data()
+            print("✅ Database initialized successfully!")
+        except Exception as e:
+            print(f"❌ Database initialization error: {e}")
     
     # Health check endpoint
     @app.route('/health')
     def health_check():
-        """Health check endpoint for monitoring"""
+        """Health check endpoint"""
         try:
             from sqlalchemy import text
             db.session.execute(text('SELECT 1'))
@@ -66,17 +86,21 @@ def create_app(config_name=None):
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }, 500
     
-    # Main routes
+    return app
+
+def create_basic_routes(app):
+    """Create basic routes if blueprints are not available"""
+    from flask import render_template, redirect, url_for, request, flash
+    from flask_login import login_user, logout_user, login_required, current_user
+    
     @app.route('/')
-    def home():
-        """Home page - redirect to dashboard if logged in"""
+    def index():
         if current_user.is_authenticated:
-            return redirect(url_for('dashboard'))
+            return render_template('dashboard/main.html', stats={}, recent_activities=[])
         return redirect(url_for('login'))
     
     @app.route('/login', methods=['GET', 'POST'])
     def login():
-        """Login page"""
         if request.method == 'POST':
             from models import User
             username = request.form.get('username')
@@ -86,10 +110,10 @@ def create_app(config_name=None):
             if user and user.check_password(password) and user.is_active:
                 login_user(user)
                 user.last_login = datetime.now(timezone.utc)
+                from models import db
                 db.session.commit()
                 flash(f'Welcome back, {user.full_name}!', 'success')
-                next_page = request.args.get('next')
-                return redirect(next_page) if next_page else redirect(url_for('dashboard'))
+                return redirect(url_for('index'))
             else:
                 flash('Invalid username or password.', 'error')
         
@@ -98,91 +122,13 @@ def create_app(config_name=None):
     @app.route('/logout')
     @login_required
     def logout():
-        """Logout"""
         logout_user()
         flash('You have been logged out successfully.', 'info')
         return redirect(url_for('login'))
-    
-    @app.route('/dashboard')
-    @login_required
-    def dashboard():
-        """Dashboard page"""
-        from models import Patient, Appointment, AppointmentStatus, UserRole
-        
-        # Get dashboard statistics based on user role
-        stats = {}
-        
-        if current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
-            # Admin dashboard with full statistics
-            stats = {
-                'total_patients': Patient.query.filter_by(is_active=True).count(),
-                'total_appointments_today': Appointment.query.filter_by(
-                    appointment_date=date.today()
-                ).count(),
-                'pending_appointments': Appointment.query.filter_by(
-                    status=AppointmentStatus.SCHEDULED
-                ).count(),
-                'my_patients': Patient.query.filter_by(is_active=True).count()
-            }
-        elif current_user.role == UserRole.DOCTOR:
-            # Doctor dashboard
-            stats = {
-                'my_appointments_today': Appointment.query.filter_by(
-                    doctor_id=current_user.id,
-                    appointment_date=date.today()
-                ).count(),
-                'my_patients': Patient.query.filter_by(is_active=True).count(),
-                'pending_appointments': Appointment.query.filter_by(
-                    doctor_id=current_user.id,
-                    status=AppointmentStatus.SCHEDULED
-                ).count(),
-                'total_patients': Patient.query.filter_by(is_active=True).count()
-            }
-        else:
-            # Staff dashboard
-            stats = {
-                'total_patients': Patient.query.filter_by(is_active=True).count(),
-                'total_appointments_today': Appointment.query.filter_by(
-                    appointment_date=date.today()
-                ).count(),
-                'pending_appointments': Appointment.query.filter_by(
-                    status=AppointmentStatus.SCHEDULED
-                ).count(),
-                'my_patients': Patient.query.filter_by(is_active=True).count()
-            }
-        
-        return render_template('dashboard/main.html', stats=stats, recent_activities=[])
-    
-    # Create database tables and default data
-    with app.app_context():
-        try:
-            db.create_all()
-            create_default_data()
-            print("✅ Database initialized successfully!")
-        except Exception as e:
-            print(f"❌ Database initialization error: {e}")
-    
-    return app
-
-def register_error_handlers(app):
-    """Register error handlers"""
-    @app.errorhandler(404)
-    def not_found_error(error):
-        if request.path.startswith('/api/'):
-            return jsonify({'error': 'Not found'}), 404
-        return render_template('errors/404.html'), 404
-
-    @app.errorhandler(500)
-    def internal_error(error):
-        from models import db
-        db.session.rollback()
-        if request.path.startswith('/api/'):
-            return jsonify({'error': 'Internal server error'}), 500
-        return render_template('errors/500.html'), 500
 
 def create_default_data():
     """Create default users and system settings"""
-    from models import db, User, UserRole
+    from models import db, User, UserRole, SystemSetting, TreatmentPackage
     
     try:
         # Create super admin if not exists
@@ -223,6 +169,31 @@ def create_default_data():
             )
             staff.set_password('staff123')
             db.session.add(staff)
+        
+        # Create default treatment packages
+        if not TreatmentPackage.query.first():
+            packages = [
+                {
+                    'name': 'Physiotherapy Basic Package',
+                    'description': 'Basic physiotherapy sessions for general treatment',
+                    'total_sessions': 10,
+                    'price_per_session': 500.0,
+                    'total_price': 4500.0,
+                    'validity_days': 90
+                },
+                {
+                    'name': 'Physiotherapy Premium Package',
+                    'description': 'Premium physiotherapy sessions with advanced treatment',
+                    'total_sessions': 20,
+                    'price_per_session': 600.0,
+                    'total_price': 10800.0,
+                    'validity_days': 120
+                }
+            ]
+            
+            for pkg_data in packages:
+                package = TreatmentPackage(**pkg_data)
+                db.session.add(package)
         
         db.session.commit()
         print("✅ Default data created successfully!")
