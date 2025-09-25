@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-from main import create_app
+from app import create_app
 
 # Create application instance
 app = create_app()

@@ -43,9 +43,30 @@ def create_app(config_name=None):
         from models import User
         return db.session.get(User, int(user_id))
     
+    # Register blueprints
+    try:
+        from routes.auth import auth_bp
+        from routes.main import main_bp
+        from routes.patients import patients_bp
+        from routes.appointments import appointments_bp
+        from routes.billing import billing_bp
+        from routes.api import api_bp
+
+        app.register_blueprint(auth_bp, url_prefix='/auth')
+        app.register_blueprint(main_bp)
+        app.register_blueprint(patients_bp, url_prefix='/patients')
+        app.register_blueprint(appointments_bp, url_prefix='/appointments')
+        app.register_blueprint(billing_bp, url_prefix='/billing')
+        app.register_blueprint(api_bp, url_prefix='/api')
+        print("✅ All blueprints registered successfully!")
+    except ImportError as e:
+        print(f"⚠️ Warning: Could not import some blueprints: {e}")
+        # Create basic routes if blueprints fail
+        create_basic_routes(app)
+
     # Register error handlers
     register_error_handlers(app)
-    
+
     # Health check endpoint
     @app.route('/health')
     def health_check():
@@ -66,93 +87,6 @@ def create_app(config_name=None):
                 'timestamp': datetime.now(timezone.utc).isoformat()
             }, 500
     
-    # Main routes
-    @app.route('/')
-    def home():
-        """Home page - redirect to dashboard if logged in"""
-        if current_user.is_authenticated:
-            return redirect(url_for('dashboard'))
-        return redirect(url_for('login'))
-    
-    @app.route('/login', methods=['GET', 'POST'])
-    def login():
-        """Login page"""
-        if request.method == 'POST':
-            from models import User
-            username = request.form.get('username')
-            password = request.form.get('password')
-            
-            user = User.query.filter_by(username=username).first()
-            if user and user.check_password(password) and user.is_active:
-                login_user(user)
-                user.last_login = datetime.now(timezone.utc)
-                db.session.commit()
-                flash(f'Welcome back, {user.full_name}!', 'success')
-                next_page = request.args.get('next')
-                return redirect(next_page) if next_page else redirect(url_for('dashboard'))
-            else:
-                flash('Invalid username or password.', 'error')
-        
-        return render_template('auth/login.html')
-    
-    @app.route('/logout')
-    @login_required
-    def logout():
-        """Logout"""
-        logout_user()
-        flash('You have been logged out successfully.', 'info')
-        return redirect(url_for('login'))
-    
-    @app.route('/dashboard')
-    @login_required
-    def dashboard():
-        """Dashboard page"""
-        from models import Patient, Appointment, AppointmentStatus, UserRole
-        
-        # Get dashboard statistics based on user role
-        stats = {}
-        
-        if current_user.role in [UserRole.SUPER_ADMIN, UserRole.ADMIN]:
-            # Admin dashboard with full statistics
-            stats = {
-                'total_patients': Patient.query.filter_by(is_active=True).count(),
-                'total_appointments_today': Appointment.query.filter_by(
-                    appointment_date=date.today()
-                ).count(),
-                'pending_appointments': Appointment.query.filter_by(
-                    status=AppointmentStatus.SCHEDULED
-                ).count(),
-                'my_patients': Patient.query.filter_by(is_active=True).count()
-            }
-        elif current_user.role == UserRole.DOCTOR:
-            # Doctor dashboard
-            stats = {
-                'my_appointments_today': Appointment.query.filter_by(
-                    doctor_id=current_user.id,
-                    appointment_date=date.today()
-                ).count(),
-                'my_patients': Patient.query.filter_by(is_active=True).count(),
-                'pending_appointments': Appointment.query.filter_by(
-                    doctor_id=current_user.id,
-                    status=AppointmentStatus.SCHEDULED
-                ).count(),
-                'total_patients': Patient.query.filter_by(is_active=True).count()
-            }
-        else:
-            # Staff dashboard
-            stats = {
-                'total_patients': Patient.query.filter_by(is_active=True).count(),
-                'total_appointments_today': Appointment.query.filter_by(
-                    appointment_date=date.today()
-                ).count(),
-                'pending_appointments': Appointment.query.filter_by(
-                    status=AppointmentStatus.SCHEDULED
-                ).count(),
-                'my_patients': Patient.query.filter_by(is_active=True).count()
-            }
-        
-        return render_template('dashboard/main.html', stats=stats, recent_activities=[])
-    
     # Create database tables and default data
     with app.app_context():
         try:
@@ -163,6 +97,40 @@ def create_app(config_name=None):
             print(f"❌ Database initialization error: {e}")
     
     return app
+
+def create_basic_routes(app):
+    """Create basic routes if blueprints are not available"""
+    @app.route('/')
+    def index():
+        if current_user.is_authenticated:
+            return render_template('dashboard/main.html', stats={}, recent_activities=[])
+        return redirect(url_for('login'))
+
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        if request.method == 'POST':
+            from models import User
+            username = request.form.get('username')
+            password = request.form.get('password')
+
+            user = User.query.filter_by(username=username).first()
+            if user and user.check_password(password) and user.is_active:
+                login_user(user)
+                user.last_login = datetime.now(timezone.utc)
+                db.session.commit()
+                flash(f'Welcome back, {user.full_name}!', 'success')
+                return redirect(url_for('index'))
+            else:
+                flash('Invalid username or password.', 'error')
+
+        return render_template('auth/login.html')
+
+    @app.route('/logout')
+    @login_required
+    def logout():
+        logout_user()
+        flash('You have been logged out successfully.', 'info')
+        return redirect(url_for('login'))
 
 def register_error_handlers(app):
     """Register error handlers"""
