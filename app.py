@@ -100,6 +100,8 @@ def create_app(config_name=None):
 
 def create_basic_routes(app):
     """Create basic routes if blueprints are not available"""
+    from models import db  # Import db here
+
     @app.route('/')
     def index():
         if current_user.is_authenticated:

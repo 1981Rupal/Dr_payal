@@ -55,7 +55,7 @@ def list_appointments():
     today = date.today()
     stats = {
         'today_total': Appointment.query.filter_by(appointment_date=today).count(),
-        'pending_total': Appointment.query.filter_by(status=AppointmentStatus.SCHEDULED).count(),
+        'pending_total': Appointment.query.filter_by(status=AppointmentStatus.PENDING).count(),
         'completed_total': Appointment.query.filter_by(status=AppointmentStatus.COMPLETED).count(),
         'cancelled_total': Appointment.query.filter_by(status=AppointmentStatus.CANCELLED).count()
     }
